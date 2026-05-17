@@ -40,6 +40,8 @@ Every turn flows through this loop. The LLM decides which tool fits, the tool ex
 | Frontend | Vanilla HTML/CSS/JS (no frameworks) |
 
 ## Project structure
+
+```
 task-agent/
 ├── agent.py           # LLM tool-calling loop
 ├── database.py        # SQLite task CRUD
@@ -50,6 +52,7 @@ task-agent/
 ├── .env               # GROQ_API_KEY (gitignored)
 ├── .gitignore
 └── README.md
+```
 
 ## Quick start
 
@@ -71,7 +74,10 @@ pip install groq python-dotenv python-dateutil flask
 ### 2. Add your Groq API key
 
 Get a free key from [console.groq.com](https://console.groq.com), then create a `.env` file:
+
+```
 GROQ_API_KEY=your_key_here
+```
 
 ### 3. Run it
 
@@ -87,15 +93,21 @@ python agent.py
 ```
 
 ## Example session
+
+```
 user@kuldeep ›  add a task to finish sliding window by next Friday
 agent ›         ✓ Task #1 added: finish sliding window (due 2026-05-22, in 5 days)
+
 user@kuldeep ›  add a task to call mom tomorrow
 agent ›         ✓ Task #2 added: call mom (due 2026-05-18, tomorrow)
+
 user@kuldeep ›  what's urgent?
 agent ›         ⚠ 1 task needs attention:
-#2 call mom — due tomorrow
+                #2 call mom — due tomorrow
+
 user@kuldeep ›  mark task 2 as completed
 agent ›         ✓ Task #2 marked as completed.
+```
 
 ## How tool calling works
 
