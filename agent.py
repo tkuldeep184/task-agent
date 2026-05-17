@@ -144,7 +144,7 @@ def chat(user_message):
         # Execute each tool call
         for tool_call in tool_calls:
             function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments)
+            function_args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}            
             function_to_call = AVAILABLE_FUNCTIONS[function_name]
             function_response = function_to_call(**function_args)
             
