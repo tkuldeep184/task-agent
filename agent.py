@@ -2,7 +2,7 @@ import os
 import json
 from groq import Groq
 from dotenv import load_dotenv
-from database import init_db, add_task, list_tasks, complete_task, delete_task
+from database import init_db, add_task, list_tasks, complete_task, delete_task, get_urgent_tasks
 
 # Load API key and initialize database
 load_dotenv()
@@ -26,7 +26,7 @@ TOOLS = [
                     },
                     "deadline": {
                         "type": "string",
-                        "description": "Optional deadline in YYYY-MM-DD format"
+                        "description": "Optional deadline. Can be natural language like 'tomorrow', 'next Friday', 'in 3 days', or a date like '2026-05-22'."
                     }
                 },
                 "required": ["title"]
@@ -83,6 +83,22 @@ TOOLS = [
                 "required": ["task_id"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_urgent_tasks",
+            "description": "Get tasks that are due soon or overdue. Use this when the user asks what's urgent, what's due soon, what's overdue, or what they should focus on.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "within_days": {
+                        "type": "integer",
+                        "description": "Tasks due within this many days. Default is 2."
+                    }
+                }
+            }
+        }
     }
 ]
 
@@ -92,14 +108,17 @@ AVAILABLE_FUNCTIONS = {
     "list_tasks": list_tasks,
     "complete_task": complete_task,
     "delete_task": delete_task,
+    "get_urgent_tasks": get_urgent_tasks
 }
 
-SYSTEM_PROMPT = """You are a personal task manager assistant for Kuldeep.
-You help him track his daily tasks, manage interview prep, and stay focused.
+SYSTEM_PROMPT = """You are Kuldeep's personal task manager assistant.
 
-You have access to tools to add, list, complete, and delete tasks in a real database.
-Always use these tools when the user wants to manage tasks - don't pretend or make things up.
-Be concise, friendly, and practical."""
+You have tools to add, list, complete, delete, and check urgent tasks. Always use the tools - never make up task data.
+
+When adding a task, pass the deadline as natural language like 'tomorrow' or 'next Friday' - the system parses it.
+When the user asks what's urgent or due soon, use get_urgent_tasks.
+
+Be concise and practical."""
 
 conversation_history = [
     {"role": "system", "content": SYSTEM_PROMPT}
@@ -112,14 +131,19 @@ def chat(user_message):
         "content": user_message
     })
     
-    # First call - agent decides if it needs to use a tool
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=conversation_history,
-        tools=TOOLS,
-        tool_choice="auto",
-        temperature=0.7,
-    )
+    # First call - agent decides whether to use a tool
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=conversation_history,
+            tools=TOOLS,
+            tool_choice="auto",
+            temperature=0.5,
+        )
+    except Exception as e:
+        # Remove the failed user message so it doesn't pollute history
+        conversation_history.pop()
+        return f"Sorry, I had trouble processing that. Try rephrasing? (Error: {str(e)[:100]})"
     
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
@@ -144,7 +168,8 @@ def chat(user_message):
         # Execute each tool call
         for tool_call in tool_calls:
             function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}            
+            parsed = json.loads(tool_call.function.arguments) if tool_call.function.arguments else None
+            function_args = parsed if isinstance(parsed, dict) else {}
             function_to_call = AVAILABLE_FUNCTIONS[function_name]
             function_response = function_to_call(**function_args)
             
