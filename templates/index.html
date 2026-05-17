@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 720px;
+            height: 85vh;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #0f3460;
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .chat-header .subtitle {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: #0f3460;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.agent {
+            background: #f1f3f5;
+            color: #222;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.error {
+            background: #ffe5e5;
+            color: #c00;
+            align-self: center;
+            font-size: 12px;
+        }
+
+        .typing {
+            align-self: flex-start;
+            color: #999;
+            font-size: 12px;
+            font-style: italic;
+            padding: 8px 16px;
+        }
+
+        .input-area {
+            border-top: 1px solid #eee;
+            padding: 16px 24px;
+            display: flex;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-area input:focus {
+            border-color: #0f3460;
+        }
+
+        .input-area button {
+            background: #0f3460;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .input-area button:hover:not(:disabled) {
+            background: #16213e;
+        }
+
+        .input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .welcome {
+            text-align: center;
+            color: #999;
+            margin-top: 40px;
+            font-size: 13px;
+        }
+
+        .welcome strong {
+            color: #555;
+        }
+
+        /* Scrollbar styling */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .messages::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 4px;
+        }
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div>
+                <h1>Task Agent</h1>
+                <div class="subtitle">Your personal AI task manager</div>
+            </div>
+            <button class="reset-btn" onclick="resetChat()">Reset chat</button>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="welcome">
+                <strong>Hi Kuldeep!</strong><br>
+                Try: "add a task to finish sliding window by next Friday" or "what's urgent?"
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input
+                type="text"
+                id="userInput"
+                placeholder="Type a message..."
+                autofocus
+                onkeydown="if (event.key === 'Enter') sendMessage()"
+            >
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function addMessage(text, type) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return msg;
+        }
+
+        function addTyping() {
+            const t = document.createElement('div');
+            t.className = 'typing';
+            t.id = 'typingIndicator';
+            t.textContent = 'Agent is thinking...';
+            messagesDiv.appendChild(t);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function removeTyping() {
+            const t = document.getElementById('typingIndicator');
+            if (t) t.remove();
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            userInput.value = '';
+            sendBtn.disabled = true;
+            addTyping();
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                removeTyping();
+
+                if (data.error) {
+                    addMessage('Error: ' + data.error, 'error');
+                } else {
+                    addMessage(data.response, 'agent');
+                }
+            } catch (err) {
+                removeTyping();
+                addMessage('Network error: ' + err.message, 'error');
+            } finally {
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        async function resetChat() {
+            if (!confirm('Clear the chat? (Your tasks will stay in the database.)')) return;
+            await fetch('/reset', { method: 'POST' });
+            messagesDiv.innerHTML = '<div class="welcome"><strong>Chat reset.</strong><br>Your tasks are still saved.</div>';
+        }
+    </script>
+</body>
+</html>
